@@ -1,128 +1,115 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import datetime
 import matplotlib.pyplot as plt
 
-# ---- Sidebar Inputs ----
-st.set_page_config(layout="wide")
-st.title("📈 STB Investment Strategy Dashboard")
-
-st.sidebar.header("🔧 Adjust Assumptions")
-
-# Token Allocation
+# --- Constants ---
 main_tokens = 457143
 secondary_tokens = 45834
 total_tokens = main_tokens + secondary_tokens
+initial_token_price = 0.04
 
-# User Adjustables
-initial_price = st.sidebar.number_input("Initial Token Price ($)", 0.01, 5.0, value=0.04)
-target_price = st.sidebar.number_input("Target Sell Price ($)", 0.1, 20.0, value=2.0)
-lock_pool_share = st.sidebar.slider("Lock Pool Share (%)", 0.1, 5.0, value=0.5)
-staking_apy = st.sidebar.slider("Staking APY (%)", 0, 200, value=50)
-locking_apy = st.sidebar.slider("Locking APY (%)", 0, 300, value=100)
-volume_start = st.sidebar.number_input("Start DEX Volume ($M/day)", 10, 1000, value=100) * 1_000_000
-volume_end = st.sidebar.number_input("End-Year DEX Volume ($M/day)", 10, 1000, value=300) * 1_000_000
+# --- Sidebar Inputs ---
+st.set_page_config(layout="wide")
+st.title("📈 STB Investment Strategy Dashboard")
+st.sidebar.header("🔧 Adjust Assumptions")
 
-# Constants
-fee_rate = 0.001  # 0.1%
-vesting_start_main = 7
-vesting_period_main = 8
-vesting_period_secondary = 6
+target_price = st.sidebar.number_input("🎯 Target Sell Price ($)", 0.1, 20.0, value=2.0)
+lock_pool_share = st.sidebar.slider("🔐 Lock Pool Share (%)", 0.1, 5.0, value=0.5)
+stake_pool_share = st.sidebar.slider("📥 Staking Pool Share (%)", 0.1, 10.0, value=4.0)
+staking_apy = st.sidebar.slider("📈 Staking APY (%)", 0, 200, value=50)
+locking_apy = st.sidebar.slider("🔒 Locking APY (%)", 0, 300, value=100)
+fee_rate = st.sidebar.slider("💰 Transaction Fee Rate (%)", 0.01, 0.5, value=0.1) / 100
+volume_start = st.sidebar.number_input("📊 Start DEX Volume ($M/day)", 10, 1000, value=100) * 1_000_000
+volume_end = st.sidebar.number_input("📈 End-Year DEX Volume ($M/day)", 10, 1000, value=300) * 1_000_000
 
-# ---- Simulation ----
+# --- Simulated Rewards & Tokens ---
 months = np.arange(1, 25)
-locked, vested, staked, rewards = [], [], [], []
+reward_usd = []
+total_tokens_over_time = []
 
 for month in months:
-    locked_amt = 0
-    vested_amt = 0
-    staked_amt = 0
-    reward_amt = 0
+    volume = volume_start + (volume_end - volume_start) * (month / 24)
+    monthly_fee = volume * fee_rate * 30
+    lock_pool_usd = monthly_fee * 0.14 * (lock_pool_share / 100)
+    stake_pool_usd = monthly_fee * 0.86 * (stake_pool_share / 100)
+    reward = lock_pool_usd + stake_pool_usd
+    reward_usd.append(reward)
 
-    # Main Vesting
-    if month <= 6:
-        locked_amt = main_tokens * 0.95
-        vested_amt += secondary_tokens * 0.10 + (secondary_tokens * 0.90) * (month / vesting_period_secondary)
-    elif 7 <= month <= 14:
-        locked_amt = main_tokens * 0.95 - ((month - 6) * (main_tokens * 0.95) / vesting_period_main)
-        vested_amt += (main_tokens * 0.95) * ((month - 6) / vesting_period_main)
-        vested_amt += secondary_tokens
-    else:
-        vested_amt = main_tokens * 0.95 + secondary_tokens
+reward_cumulative = np.cumsum(reward_usd)
+reward_tokens = [usd / initial_token_price for usd in reward_usd]
+reward_tokens_cum = np.cumsum(reward_tokens)
+total_tokens_over_time = [total_tokens + r for r in reward_tokens_cum]
 
-    # Staked estimate = All vested tokens
-    staked_amt = vested_amt
-
-    # Volume ramp
-    vol = volume_start + ((volume_end - volume_start) / 24) * month
-    total_fee = vol * fee_rate * 30  # monthly
-
-    lock_reward_pool = total_fee * 0.14
-    stake_reward_pool = total_fee * 0.86 / 25  # assume 1/25th in stb staking pool
-
-    reward_amt = (lock_reward_pool * (lock_pool_share / 100)) + stake_reward_pool
-
-    locked.append(locked_amt)
-    vested.append(vested_amt)
-    staked.append(staked_amt)
-    rewards.append(reward_amt)
-
-df = pd.DataFrame({
-    "Month": months,
-    "Locked": locked,
-    "Vested": vested,
-    "Staked": staked,
-    "Monthly Rewards ($)": rewards,
-    "Cumulative Rewards ($)": np.cumsum(rewards)
-})
-
-# ---- KPI Display ----
+# --- KPI Table ---
+kpis = [
+    {"KPI Name": "Main Allocation Tokens", "Value": main_tokens},
+    {"KPI Name": "Secondary Allocation Tokens", "Value": secondary_tokens},
+    {"KPI Name": "Total Tokens Held", "Value": total_tokens},
+    {"KPI Name": "TGE Release % (Main)", "Value": "5%"},
+    {"KPI Name": "TGE Release % (Secondary)", "Value": "10%"},
+    {"KPI Name": "Main Lock Period (Months)", "Value": 6},
+    {"KPI Name": "Main Vesting Period (Months)", "Value": 8},
+    {"KPI Name": "Secondary Vesting Period (Months)", "Value": 6},
+    {"KPI Name": "Staking APY (Estimated)", "Value": f"{staking_apy}%"},
+    {"KPI Name": "Locking APY (Estimated)", "Value": f"{locking_apy}%"},
+    {"KPI Name": "Locking Pool Share (%)", "Value": lock_pool_share},
+    {"KPI Name": "Staking Pool Share (%)", "Value": stake_pool_share},
+    {"KPI Name": "Transaction Fee Rate (%)", "Value": fee_rate * 100},
+    {"KPI Name": "Initial DEX Volume (USD/day)", "Value": int(volume_start)},
+    {"KPI Name": "Expected DEX Volume in 1 Year (USD/day)", "Value": int(volume_end)},
+    {"KPI Name": "Initial Token Price (USD)", "Value": initial_token_price},
+    {"KPI Name": "Target Sell Price (USD)", "Value": target_price},
+    {"KPI Name": "Upper Sell Price Potential (USD)", "Value": 10.0},
+    {"KPI Name": "Minimum Profit Goal (USD)", "Value": 1_000_000},
+    {"KPI Name": "Optimal Profit Goal (USD)", "Value": 5_000_000},
+    {"KPI Name": "Target Profit for 2026 (USD)", "Value": 900_000},
+    {"KPI Name": "Expected Altcoin Season Peak", "Value": "Summer 2026"},
+    {"KPI Name": "Secondary Sale Opportunity", "Value": "2030 Market Cycle"},
+    {"KPI Name": "Post-2026 Locking Plan (Months)", "Value": 30},
+    {"KPI Name": "Estimated STB Tokens in 1 Year", "Value": int(total_tokens_over_time[-1])},
+    {"KPI Name": "Can Sell Staking Rewards Immediately?", "Value": "Yes"},
+    {"KPI Name": "Can Unstake Anytime?", "Value": "Yes"},
+    {"KPI Name": "Cash Flow Requirements Before 2026?", "Value": "No"},
+]
 st.subheader("📌 Key Performance Indicators")
-kpis = {
-    "Total Tokens": total_tokens,
-    "Initial Token Price ($)": initial_price,
-    "Target Sell Price ($)": target_price,
-    "Lock Pool Share (%)": lock_pool_share,
-    "Staking APY (%)": staking_apy,
-    "Locking APY (%)": locking_apy,
-    "Start Volume ($/day)": volume_start,
-    "End Volume ($/day)": volume_end,
-    "Altcoin Season Target": "Summer 2026",
-    "Next Sale Cycle": "2030"
-}
-st.dataframe(pd.DataFrame(kpis.items(), columns=["KPI", "Value"]))
+st.dataframe(pd.DataFrame(kpis))
 
-# ---- Charts ----
-st.subheader("📊 Token Distribution Over Time")
+# --- Token Growth Graph ---
+st.subheader("📊 Estimated STB Token Accumulation Over Time")
 fig1, ax1 = plt.subplots()
-ax1.plot(df["Month"], df["Locked"], label="Locked")
-ax1.plot(df["Month"], df["Vested"], label="Vested")
-ax1.plot(df["Month"], df["Staked"], label="Staked")
+ax1.plot(months, total_tokens_over_time, label="Total Tokens Accumulated", color='blue')
 ax1.set_xlabel("Month")
-ax1.set_ylabel("Token Amount")
-ax1.set_title("Token Lifecycle")
-ax1.legend()
+ax1.set_ylabel("Tokens")
+ax1.set_title("Total STB Tokens (Including Rewards)")
 st.pyplot(fig1)
 
-st.subheader("💸 Reward Accumulation")
+# --- Profit Potential Graph ---
+st.subheader("💰 Projected Profit Based on STB Price")
+token_range = np.linspace(0.01, 12, 300)
+profits = (total_tokens_over_time[-1]) * token_range
 fig2, ax2 = plt.subplots()
-ax2.plot(df["Month"], df["Monthly Rewards ($)"], label="Monthly Rewards")
-ax2.plot(df["Month"], df["Cumulative Rewards ($)"], label="Cumulative Rewards", linestyle="--")
-ax2.set_xlabel("Month")
-ax2.set_ylabel("Rewards ($)")
-ax2.set_title("Reward Growth from Platform Fees")
+ax2.plot(token_range, profits, label="Projected Profit ($)")
+ax2.axhline(1_000_000, color='orange', linestyle='--', label="Min Goal ($1M)")
+ax2.axhline(5_000_000, color='green', linestyle='--', label="Optimal Goal ($5M)")
+ax2.set_xlabel("STB Token Price ($)")
+ax2.set_ylabel("Profit ($)")
+ax2.set_title("Profit vs. STB Price")
 ax2.legend()
 st.pyplot(fig2)
 
-# ---- Task Manager ----
-st.subheader("📅 Key Milestones & Task Tracker")
-tasks = [
-    {"Task": "🗓 Daily: Claim staking & locking rewards", "Due": "Daily"},
-    {"Task": "🔁 Reinvest unlocked rewards if STB < $2", "Due": "Monthly"},
-    {"Task": "🔓 Month 7: Begin receiving vested tokens (Main)", "Due": "Month 7"},
-    {"Task": "📊 Month 24: Lock remaining tokens post-2026", "Due": "Month 24"},
-    {"Task": "💰 Summer 2026: Liquidate up to $1M at STB > $2", "Due": "Q2-Q3 2026"},
-    {"Task": "🔒 Post-2026: Lock remaining tokens for 2030", "Due": "Late 2026"}
-]
-st.table(pd.DataFrame(tasks))
+# --- Altcoin Cycle Timeline ---
+st.subheader("🕒 Strategic Altcoin Cycle Timeline")
+timeline_data = pd.DataFrame({
+    "Event": ["TGE", "Main Vesting Start", "Target Sell Window", "2030 Cycle Prep"],
+    "Month": [0, 6, 18, 60],
+    "Description": ["TGE Complete", "Vesting Begins", "Peak Sale Strategy", "Next Cycle Opportunity"]
+})
+st.dataframe(timeline_data)
+
+st.markdown("""
+**🗓 Recommendations:**
+- Accumulate until Summer 2026 (expected alt season)
+- Prepare sell strategy for STB at ≥ $2
+- Re-lock remaining tokens post-2026 for 2030 run
+""")
