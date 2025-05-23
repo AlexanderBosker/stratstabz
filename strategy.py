@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import plotly.express as px
 
 # --- Constants ---
 main_tokens = 457143
@@ -26,6 +27,7 @@ volume_end = st.sidebar.number_input("📈 End-Year DEX Volume ($M/day)", 10, 10
 # --- Simulated Rewards & Tokens ---
 months = np.arange(1, 25)
 reward_usd = []
+reward_tokens = []
 total_tokens_over_time = []
 
 for month in months:
@@ -33,83 +35,86 @@ for month in months:
     monthly_fee = volume * fee_rate * 30
     lock_pool_usd = monthly_fee * 0.14 * (lock_pool_share / 100)
     stake_pool_usd = monthly_fee * 0.86 * (stake_pool_share / 100)
-    reward = lock_pool_usd + stake_pool_usd
-    reward_usd.append(reward)
+    total_reward_usd = lock_pool_usd + stake_pool_usd
+    tokens_from_rewards = total_reward_usd / initial_token_price
+    reward_usd.append(total_reward_usd)
+    reward_tokens.append(tokens_from_rewards)
 
-reward_cumulative = np.cumsum(reward_usd)
-reward_tokens = [usd / initial_token_price for usd in reward_usd]
 reward_tokens_cum = np.cumsum(reward_tokens)
-total_tokens_over_time = [total_tokens + r for r in reward_tokens_cum]
+total_tokens_over_time = total_tokens + reward_tokens_cum
 
-# --- KPI Table ---
+# --- Expected Price Curve & Profit ---
+expected_price = np.concatenate([
+    np.linspace(0.04, 1.0, 12),
+    np.linspace(1.0, 2.5, 12)
+])
+projected_profit = total_tokens_over_time * expected_price
+
+# --- Interactive Token Accumulation Chart ---
+st.subheader("📊 Total STB Tokens (Including Rewards)")
+token_chart = go.Figure()
+token_chart.add_trace(go.Scatter(
+    x=months,
+    y=total_tokens_over_time,
+    mode='lines+markers',
+    name='Total STB Tokens',
+    hovertemplate='Month %{x}<br>Tokens: %{y:,.0f}<extra></extra>'
+))
+token_chart.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Tokens",
+    hovermode='x unified',
+    margin=dict(l=40, r=40, t=40, b=40)
+)
+st.plotly_chart(token_chart, use_container_width=True)
+
+# --- Projected Profit Chart ---
+st.subheader("💰 Projected Profit Based on Expected STB Price")
+profit_chart = go.Figure()
+profit_chart.add_trace(go.Scatter(
+    x=months,
+    y=projected_profit,
+    mode='lines+markers',
+    name='Projected Profit ($)',
+    hovertemplate='Month %{x}<br>Profit: $%{y:,.0f}<extra></extra>'
+))
+profit_chart.add_hline(y=1_000_000, line_dash='dash', line_color='orange', annotation_text='Goal: $1M')
+profit_chart.add_hline(y=5_000_000, line_dash='dash', line_color='green', annotation_text='Optimal: $5M')
+profit_chart.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Profit ($)",
+    hovermode='x unified',
+    margin=dict(l=40, r=40, t=40, b=40)
+)
+st.plotly_chart(profit_chart, use_container_width=True)
+
+# --- Expected Token Price Growth Chart ---
+st.subheader("📈 Expected STB Price Growth (Next 2 Years)")
+price_chart = px.line(
+    x=months,
+    y=expected_price,
+    labels={'x': 'Month', 'y': 'Expected STB Price ($)'},
+    title="Projected Token Price Over 2 Years"
+)
+price_chart.update_traces(mode='lines+markers', hovertemplate='Month %{x}<br>Price: $%{y:.2f}<extra></extra>')
+price_chart.update_layout(hovermode='x unified')
+st.plotly_chart(price_chart, use_container_width=True)
+
+# --- KPI Summary Table ---
+st.subheader("📌 Key Performance Indicators (KPI)")
 kpis = [
-    {"KPI Name": "Main Allocation Tokens", "Value": main_tokens},
-    {"KPI Name": "Secondary Allocation Tokens", "Value": secondary_tokens},
-    {"KPI Name": "Total Tokens Held", "Value": total_tokens},
-    {"KPI Name": "TGE Release % (Main)", "Value": "5%"},
-    {"KPI Name": "TGE Release % (Secondary)", "Value": "10%"},
-    {"KPI Name": "Main Lock Period (Months)", "Value": 6},
-    {"KPI Name": "Main Vesting Period (Months)", "Value": 8},
-    {"KPI Name": "Secondary Vesting Period (Months)", "Value": 6},
-    {"KPI Name": "Staking APY (Estimated)", "Value": f"{staking_apy}%"},
-    {"KPI Name": "Locking APY (Estimated)", "Value": f"{locking_apy}%"},
-    {"KPI Name": "Locking Pool Share (%)", "Value": lock_pool_share},
-    {"KPI Name": "Staking Pool Share (%)", "Value": stake_pool_share},
-    {"KPI Name": "Transaction Fee Rate (%)", "Value": fee_rate * 100},
-    {"KPI Name": "Initial DEX Volume (USD/day)", "Value": int(volume_start)},
-    {"KPI Name": "Expected DEX Volume in 1 Year (USD/day)", "Value": int(volume_end)},
-    {"KPI Name": "Initial Token Price (USD)", "Value": initial_token_price},
-    {"KPI Name": "Target Sell Price (USD)", "Value": target_price},
-    {"KPI Name": "Upper Sell Price Potential (USD)", "Value": 10.0},
-    {"KPI Name": "Minimum Profit Goal (USD)", "Value": 1_000_000},
-    {"KPI Name": "Optimal Profit Goal (USD)", "Value": 5_000_000},
-    {"KPI Name": "Target Profit for 2026 (USD)", "Value": 900_000},
-    {"KPI Name": "Expected Altcoin Season Peak", "Value": "Summer 2026"},
-    {"KPI Name": "Secondary Sale Opportunity", "Value": "2030 Market Cycle"},
-    {"KPI Name": "Post-2026 Locking Plan (Months)", "Value": 30},
-    {"KPI Name": "Estimated STB Tokens in 1 Year", "Value": int(total_tokens_over_time[-1])},
-    {"KPI Name": "Can Sell Staking Rewards Immediately?", "Value": "Yes"},
-    {"KPI Name": "Can Unstake Anytime?", "Value": "Yes"},
-    {"KPI Name": "Cash Flow Requirements Before 2026?", "Value": "No"},
+    ("Main Allocation Tokens", main_tokens),
+    ("Secondary Allocation Tokens", secondary_tokens),
+    ("Total Tokens Held", total_tokens),
+    ("Locking Pool Share (%)", lock_pool_share),
+    ("Staking Pool Share (%)", stake_pool_share),
+    ("Staking APY (%)", staking_apy),
+    ("Locking APY (%)", locking_apy),
+    ("Transaction Fee Rate (%)", fee_rate * 100),
+    ("Initial Token Price ($)", initial_token_price),
+    ("Target Sell Price ($)", target_price),
+    ("Expected STB Price End Year", expected_price[-1]),
+    ("Projected Tokens in 2 Years", int(total_tokens_over_time[-1])),
+    ("Projected Profit at End Price ($)", f"${projected_profit[-1]:,.0f}"),
 ]
-st.subheader("📌 Key Performance Indicators")
-st.dataframe(pd.DataFrame(kpis))
-
-# --- Token Growth Graph ---
-st.subheader("📊 Estimated STB Token Accumulation Over Time")
-fig1, ax1 = plt.subplots()
-ax1.plot(months, total_tokens_over_time, label="Total Tokens Accumulated", color='blue')
-ax1.set_xlabel("Month")
-ax1.set_ylabel("Tokens")
-ax1.set_title("Total STB Tokens (Including Rewards)")
-st.pyplot(fig1)
-
-# --- Profit Potential Graph ---
-st.subheader("💰 Projected Profit Based on STB Price")
-token_range = np.linspace(0.01, 12, 300)
-profits = (total_tokens_over_time[-1]) * token_range
-fig2, ax2 = plt.subplots()
-ax2.plot(token_range, profits, label="Projected Profit ($)")
-ax2.axhline(1_000_000, color='orange', linestyle='--', label="Min Goal ($1M)")
-ax2.axhline(5_000_000, color='green', linestyle='--', label="Optimal Goal ($5M)")
-ax2.set_xlabel("STB Token Price ($)")
-ax2.set_ylabel("Profit ($)")
-ax2.set_title("Profit vs. STB Price")
-ax2.legend()
-st.pyplot(fig2)
-
-# --- Altcoin Cycle Timeline ---
-st.subheader("🕒 Strategic Altcoin Cycle Timeline")
-timeline_data = pd.DataFrame({
-    "Event": ["TGE", "Main Vesting Start", "Target Sell Window", "2030 Cycle Prep"],
-    "Month": [0, 6, 18, 60],
-    "Description": ["TGE Complete", "Vesting Begins", "Peak Sale Strategy", "Next Cycle Opportunity"]
-})
-st.dataframe(timeline_data)
-
-st.markdown("""
-**🗓 Recommendations:**
-- Accumulate until Summer 2026 (expected alt season)
-- Prepare sell strategy for STB at ≥ $2
-- Re-lock remaining tokens post-2026 for 2030 run
-""")
+st.dataframe(pd.DataFrame(kpis, columns=["KPI", "Value"]))
