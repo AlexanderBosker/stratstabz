@@ -144,6 +144,10 @@ if page == "📈 STB Investment Strategy Dashboard":
 if page == "📊 Token Vesting Distribution":
     st.title("📊 Token Vesting vs. Available Distribution")
 
+    main_tokens = 457143
+    secondary_tokens = 45834
+    total_tokens = main_tokens + secondary_tokens
+
     months = np.arange(1, 15)
     vested, vesting = [], []
 
