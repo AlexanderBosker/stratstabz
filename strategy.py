@@ -8,8 +8,9 @@ main_tokens = 457143
 secondary_tokens = 45834
 total_tokens = main_tokens + secondary_tokens
 initial_token_price = 0.04
+months = np.arange(1, 25)
 
-# --- Sidebar Config ---
+# --- Sidebar ---
 st.set_page_config(layout="wide")
 st.title("📈 STB Investment Strategy Dashboard")
 st.sidebar.header("🔧 Adjust Assumptions")
@@ -23,8 +24,13 @@ fee_rate = st.sidebar.slider("💰 Transaction Fee Rate (%)", 0.001, 0.5, value=
 volume_start = st.sidebar.number_input("📊 Start DEX Volume ($M/day)", 10, 1000, value=100) * 1_000_000
 volume_end = st.sidebar.number_input("📈 End-Year DEX Volume ($M/day)", 10, 1000, value=300) * 1_000_000
 
-# --- Token and Reward Simulation ---
-months = np.arange(1, 25)
+# --- Price Curve Handles ---
+st.sidebar.markdown("### 📈 Adjust STB Price Curve")
+K_price = st.sidebar.slider("🧮 Max Token Price (K)", 0.5, 10.0, 2.5, step=0.1)
+r_growth = st.sidebar.slider("📈 Growth Rate (r)", 0.01, 1.0, 0.3, step=0.01)
+t_midpoint = st.sidebar.slider("🕒 Inflection Point (Month t₀)", 1, 24, 12)
+
+# --- Token Accumulation Simulation ---
 reward_usd, reward_tokens, total_tokens_over_time = [], [], []
 cumulative_rewards = 0
 
@@ -40,11 +46,11 @@ for month in months:
     reward_tokens.append(reward_token_amount)
     total_tokens_over_time.append(total_tokens + cumulative_rewards)
 
-# --- Logistic Token Price ---
-def logistic_price(t, K=2.5, r=0.3, t0=12):
+# --- Price Curve & Profit ---
+def logistic_price(t, K, r, t0):
     return K / (1 + np.exp(-r * (t - t0)))
 
-expected_price = logistic_price(months)
+expected_price = logistic_price(months, K_price, r_growth, t_midpoint)
 projected_profit = np.array(total_tokens_over_time) * expected_price
 
 def find_nearest_index(arr, target):
@@ -109,14 +115,42 @@ fig_price.update_layout(
 st.plotly_chart(fig_price, use_container_width=True)
 
 # --- KPI Table ---
-st.subheader("📌 Key Performance Indicators")
+estimated_token_reward = total_tokens_over_time[-1] - total_tokens
+estimated_total_tokens = total_tokens_over_time[-1]
+
 kpis = [
-    ("Initial Tokens", total_tokens),
-    ("Lock Pool Share (%)", lock_pool_share),
-    ("Stake Pool Share (%)", stake_pool_share),
+    ("Main Allocation Tokens", main_tokens),
+    ("Secondary Allocation Tokens", secondary_tokens),
+    ("Total Tokens Held", total_tokens),
+    ("TGE Release % (Main)", "5%"),
+    ("TGE Release % (Secondary)", "10%"),
+    ("Main Lock Period (Months)", 6),
+    ("Main Vesting Period (Months)", 8),
+    ("Secondary Vesting Period (Months)", 6),
+    ("Staking APY (Estimated)", f"{staking_apy}%"),
+    ("Locking APY (Estimated)", f"{locking_apy}%"),
+    ("Locking Pool Share (%)", lock_pool_share),
+    ("Staking Pool Share (%)", stake_pool_share),
     ("Transaction Fee Rate (%)", fee_rate * 100),
-    ("Projected Tokens in 2 Years", int(total_tokens_over_time[-1])),
-    ("Projected Profit ($, end)", f"${projected_profit[-1]:,.0f}"),
-    ("Expected Token Price (end)", f"${expected_price[-1]:.2f}")
+    ("Initial Token Price (USD)", initial_token_price),
+    ("Target Sell Price (USD)", target_price),
+    ("Max Projected Price (USD)", K_price),
+    ("Estimated STB Price (Month 24)", f"${expected_price[-1]:.2f}"),
+    ("Estimated Additional Tokens (1Y)", int(estimated_token_reward)),
+    ("Estimated Total Tokens (1Y)", int(estimated_total_tokens)),
+    ("Estimated Profit at $0.04", int(estimated_total_tokens * 0.04)),
+    ("Estimated Profit at $2.00", int(estimated_total_tokens * 2)),
+    ("Estimated Profit at $10.00", int(estimated_total_tokens * 10)),
+    ("Minimum Profit Goal (USD)", 1_000_000),
+    ("Optimal Profit Goal (USD)", 5_000_000),
+    ("Target Profit for 2026 (USD)", 900_000),
+    ("Expected Altcoin Season Peak", "Summer 2026"),
+    ("Secondary Sale Opportunity", "2030 Market Cycle"),
+    ("Post-2026 Locking Plan (Months)", 30),
+    ("Can Sell Staking Rewards Immediately?", "Yes"),
+    ("Can Unstake Anytime?", "Yes"),
+    ("Cash Flow Requirements Before 2026?", "No"),
 ]
+
+st.subheader("📌 Key Performance Indicators (KPI)")
 st.dataframe(pd.DataFrame(kpis, columns=["KPI", "Value"]))
