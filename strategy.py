@@ -178,6 +178,32 @@ if page == "📊 Token Vesting Distribution":
         yaxis_title="Percentage of Tokens",
         hovermode='x unified'
     )
+    # Toggle between percentage and token display
+display_mode = st.radio("📊 Select View Mode", ["Percentage", "Token Amounts"])
+
+fig = go.Figure()
+
+if display_mode == "Percentage":
+    fig.add_trace(go.Scatter(x=months, y=df["Vested & Available (%)"], mode='lines+markers', name="Available (%)"))
+    fig.add_trace(go.Scatter(x=months, y=df["Still in Vesting (%)"], mode='lines+markers', name="In Vesting (%)"))
+    fig.update_layout(
+        title="Token Vesting Schedule (Percentage View)",
+        xaxis_title="Month",
+        yaxis_title="Percentage of Tokens",
+        hovermode='x unified'
+    )
+else:
+    fig.add_trace(go.Scatter(x=months, y=df["Vested & Available (Tokens)"], mode='lines+markers', name="Available Tokens"))
+    fig.add_trace(go.Scatter(x=months, y=df["Still in Vesting (Tokens)"], mode='lines+markers', name="In Vesting Tokens"))
+    fig.update_layout(
+        title="Token Vesting Schedule (Token View)",
+        xaxis_title="Month",
+        yaxis_title="Token Amount",
+        hovermode='x unified'
+    )
+
+st.plotly_chart(fig, use_container_width=True)
+
 
     st.plotly_chart(fig, use_container_width=True)
     st.dataframe(df)
