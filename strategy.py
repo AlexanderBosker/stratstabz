@@ -205,4 +205,5 @@ if page == "📊 Token Vesting Distribution":
     # Final Output
     st.plotly_chart(fig, use_container_width=True)
     st.subheader("📋 Vesting Table")
-    st.dataframe(df)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
