@@ -144,12 +144,15 @@ if page == "📈 STB Investment Strategy Dashboard":
 if page == "📊 Token Vesting Distribution":
     st.title("📊 Token Vesting vs. Available Distribution")
 
+    # Token setup
     main_tokens = 457143
     secondary_tokens = 45834
     total_tokens = main_tokens + secondary_tokens
-
     months = np.arange(1, 15)
-    vested, vesting = [], []
+
+    # Initialize tracking
+    vested_pct, vesting_pct = [], []
+    vested_tokens, vesting_tokens = [], []
 
     for month in months:
         if month <= 6:
@@ -159,30 +162,27 @@ if page == "📊 Token Vesting Distribution":
             mv = main_tokens * 0.05 + ((month - 6) / 8) * (main_tokens * 0.95)
             sv = secondary_tokens
         total_vested = mv + sv
-        available_pct = total_vested / total_tokens * 100
-        vested.append(available_pct)
-        vesting.append(100 - available_pct)
+        total_vesting = total_tokens - total_vested
 
+        vested_pct.append((total_vested / total_tokens) * 100)
+        vesting_pct.append((total_vesting / total_tokens) * 100)
+        vested_tokens.append(total_vested)
+        vesting_tokens.append(total_vesting)
+
+    # Create full DataFrame
     df = pd.DataFrame({
         "Month": months,
-        "Vested & Available (%)": vested,
-        "Still in Vesting (%)": vesting
+        "Vested & Available (%)": vested_pct,
+        "Still in Vesting (%)": vesting_pct,
+        "Vested & Available (Tokens)": vested_tokens,
+        "Still in Vesting (Tokens)": vesting_tokens
     })
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=months, y=vested, mode='lines+markers', name="Available"))
-    fig.add_trace(go.Scatter(x=months, y=vesting, mode='lines+markers', name="In Vesting"))
-    fig.update_layout(
-        title="Token Vesting Schedule Over 14 Months",
-        xaxis_title="Month",
-        yaxis_title="Percentage of Tokens",
-        hovermode='x unified'
-    )
-    # Toggle between percentage and token display
+    # Display Mode Toggle
     display_mode = st.radio("📊 Select View Mode", ["Percentage", "Token Amounts"])
 
+    # Plot Chart
     fig = go.Figure()
-
     if display_mode == "Percentage":
         fig.add_trace(go.Scatter(x=months, y=df["Vested & Available (%)"], mode='lines+markers', name="Available (%)"))
         fig.add_trace(go.Scatter(x=months, y=df["Still in Vesting (%)"], mode='lines+markers', name="In Vesting (%)"))
@@ -191,7 +191,7 @@ if page == "📊 Token Vesting Distribution":
             xaxis_title="Month",
             yaxis_title="Percentage of Tokens",
             hovermode='x unified'
-    )
+        )
     else:
         fig.add_trace(go.Scatter(x=months, y=df["Vested & Available (Tokens)"], mode='lines+markers', name="Available Tokens"))
         fig.add_trace(go.Scatter(x=months, y=df["Still in Vesting (Tokens)"], mode='lines+markers', name="In Vesting Tokens"))
@@ -200,10 +200,9 @@ if page == "📊 Token Vesting Distribution":
             xaxis_title="Month",
             yaxis_title="Token Amount",
             hovermode='x unified'
-    )
+        )
 
-st.plotly_chart(fig, use_container_width=True)
-
-
+    # Final Output
     st.plotly_chart(fig, use_container_width=True)
+    st.subheader("📋 Vesting Table")
     st.dataframe(df)
