@@ -135,21 +135,24 @@ if page == "📈 STB Investment Strategy Dashboard":
 
 # === Section 2: Token Vesting Distribution ===
 elif page == "📆 Altcoin Season Timeline":
-    st.title("📈 Strategic Token Distribution Timeline With Reward Overlay")
+    st.title("📊 Strategic Token Distribution Timeline with Reward Overlay")
 
+    # --- User Inputs ---
     altseason_start_month = st.sidebar.slider("Month Altcoin Season Starts", 1, 24, 18)
     altseason_duration = st.sidebar.slider("Duration of Altcoin Season (Months)", 1, 6, 4)
 
+    # --- Token Setup ---
     main_tokens = 457143
     secondary_tokens = 45834
     total_tokens = main_tokens + secondary_tokens
     initial_token_price = 0.04
+
     months_range = 24
     months = np.arange(1, months_range + 1)
     start_date = datetime(2025, 5, 1)
     dates = [start_date + timedelta(days=30 * i) for i in range(months_range)]
 
-    # Simulate vesting
+    # --- Vesting Simulation ---
     vested_tokens = []
     for month in months:
         if month <= 6:
@@ -160,49 +163,69 @@ elif page == "📆 Altcoin Season Timeline":
             sv = secondary_tokens
         vested_tokens.append(mv + sv)
 
-    # Simulate distribution
-    locked_tokens, staked_tokens, reward_tokens = [], [], []
+    # --- Distribution & Rewards ---
+    locked_tokens, staked_tokens, reward_tokens, top_line = [], [], [], []
     cumulative_rewards = 0
 
     for i, month in enumerate(months):
+        vested = vested_tokens[i]
+
+        # Locking vs Staking Dynamics
         if month < altseason_start_month:
-            lock = vested_tokens[i]
+            lock = vested
             stake = total_tokens - lock
         elif altseason_start_month <= month < altseason_start_month + altseason_duration:
             lock = 0
-            stake = vested_tokens[i]
+            stake = vested
         else:
-            lock = vested_tokens[i]
+            lock = vested
             stake = 0
-        reward = 10000 + (i * 5000)  # simplified reward logic
-        cumulative_rewards += reward
+
+        # Simulated reward growth
+        monthly_reward_tokens = 10000 + i * 5000
+        cumulative_rewards += monthly_reward_tokens
+
         locked_tokens.append(lock)
         staked_tokens.append(stake)
         reward_tokens.append(cumulative_rewards)
+        top_line.append((lock if lock > 0 else stake) + cumulative_rewards)
 
-    # Create reward overlay line
-    top_line = [locked_tokens[i] + reward_tokens[i] if locked_tokens[i] > 0 else staked_tokens[i] + reward_tokens[i] for i in range(months_range)]
-
-    # Create the chart
+    # --- Create Chart ---
     fig = go.Figure()
+
     fig.add_trace(go.Scatter(
-        x=dates, y=locked_tokens, name='🔒 Locked Tokens',
+        x=dates, y=locked_tokens,
+        mode='lines+markers',
+        name='🔒 Locked Tokens',
         line=dict(color='orange'),
-        hovertemplate='Locked: %{y:,.0f} Tokens<br>Date: %{x|%b %y}<extra></extra>'))
+        hovertemplate='%{x|%b %y}<br>🔒 Locked: %{y:,.0f} STB ($%{customdata:,.0f})<extra></extra>',
+        customdata=np.array(locked_tokens) * initial_token_price
+    ))
+
     fig.add_trace(go.Scatter(
-        x=dates, y=staked_tokens, name='📥 Staked Tokens (vested)',
+        x=dates, y=staked_tokens,
+        mode='lines+markers',
+        name='📥 Staked Tokens (vested)',
         line=dict(color='goldenrod'),
-        hovertemplate='Staked: %{y:,.0f} Tokens<br>Date: %{x|%b %y}<extra></extra>'))
+        hovertemplate='%{x|%b %y}<br>📥 Staked: %{y:,.0f} STB ($%{customdata:,.0f})<extra></extra>',
+        customdata=np.array(staked_tokens) * initial_token_price
+    ))
+
     fig.add_trace(go.Scatter(
-        x=dates, y=top_line, name='📈 Cumulative Rewards (on top)',
+        x=dates, y=top_line,
+        mode='lines+markers',
+        name='📈 Cumulative Rewards (on top)',
         line=dict(color='deeppink'),
-        hovertemplate='Total: %{y:,.0f} Tokens (incl. rewards)<br>Date: %{x|%b %y}<extra></extra>'))
+        hovertemplate='%{x|%b %y}<br>📈 Total: %{y:,.0f} STB ($%{customdata:,.0f})<extra></extra>',
+        customdata=np.array(top_line) * initial_token_price
+    ))
 
     fig.update_layout(
-        title="📊 Strategic Token Distribution Timeline with Reward Overlay",
+        title="📈 Strategic Token Distribution Timeline with Reward Overlay",
         xaxis_title="Month",
-        yaxis_title="Tokens",
-        hovermode="x unified"
+        yaxis_title="STB Tokens",
+        hovermode='x unified'
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
