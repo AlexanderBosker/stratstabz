@@ -202,6 +202,58 @@ if page == "📊 Token Vesting Distribution":
             hovermode='x unified'
         )
 
+    # --- Sidebar Controls ---
+if st.sidebar.header("📆 Altcoin Season Planning")
+    altseason_start_month = st.sidebar.slider("Month Altcoin Season Starts", 1, 24, 18)
+    altseason_duration = st.sidebar.slider("Duration of Altcoin Season (Months)", 1, 6, 4)
+
+    # --- Timeline Setup ---
+    start_date = datetime.today()
+    months_range = 24
+    dates = [start_date + timedelta(days=30 * i) for i in range(months_range)]
+    
+    # --- Build Data ---
+    lock_period = []
+    altseason_period = []
+    post_season = []
+    
+    for i in range(months_range):
+        if i < altseason_start_month:
+            lock_period.append(1)
+            altseason_period.append(0)
+            post_season.append(0)
+        elif altseason_start_month <= i < altseason_start_month + altseason_duration:
+            lock_period.append(0)
+            altseason_period.append(1)
+            post_season.append(0)
+        else:
+            lock_period.append(0)
+            altseason_period.append(0)
+            post_season.append(1)
+    
+    # --- Create DataFrame ---
+    df = pd.DataFrame({
+        "Date": dates,
+        "Locking Phase": lock_period,
+        "Altcoin Season": altseason_period,
+        "Post Season": post_season
+    })
+    
+    # --- Chart ---
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["Date"], y=df["Locking Phase"], name="Locking", stackgroup='one', mode='none'))
+    fig.add_trace(go.Scatter(x=df["Date"], y=df["Altcoin Season"], name="Altcoin Season", stackgroup='one', mode='none'))
+    fig.add_trace(go.Scatter(x=df["Date"], y=df["Post Season"], name="Post Season", stackgroup='one', mode='none'))
+    
+    fig.update_layout(
+        title="📆 STB Strategy Timeline (Lock → Altseason → Post)",
+        xaxis_title="Date",
+        yaxis_title="Phase",
+        yaxis=dict(showticklabels=False),
+        hovermode='x unified'
+    )
+
+st.plotly_chart(fig, use_container_width=True)
     # Final Output
     st.plotly_chart(fig, use_container_width=True)
     st.subheader("📋 Vesting Table")
