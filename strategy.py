@@ -2,25 +2,24 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
 # === Streamlit Setup ===
 st.set_page_config(layout="wide")
 page = st.sidebar.radio("📁 Select Dashboard Section", [
     "📈 STB Investment Strategy Dashboard",
-    "📊 Token Vesting Distribution"
+    "📊 Token Vesting Distribution",
+    "📆 Altcoin Season Timeline"
 ])
 
 # === Section 1: STB Investment Strategy Dashboard ===
 if page == "📈 STB Investment Strategy Dashboard":
-
-    # --- Constants ---
     main_tokens = 457143
     secondary_tokens = 45834
     total_tokens = main_tokens + secondary_tokens
     initial_token_price = 0.04
     months = np.arange(1, 25)
 
-    # --- Sidebar ---
     st.title("📈 STB Investment Strategy Dashboard")
     st.sidebar.header("🔧 Adjust Assumptions")
 
@@ -33,13 +32,11 @@ if page == "📈 STB Investment Strategy Dashboard":
     volume_start = st.sidebar.number_input("📊 Start DEX Volume ($M/day)", 10, 1000, value=100) * 1_000_000
     volume_end = st.sidebar.number_input("📈 End-Year DEX Volume ($M/day)", 10, 1000, value=300) * 1_000_000
 
-    # --- Price Curve Sliders ---
     st.sidebar.markdown("### 📈 Adjust STB Price Curve")
     K_price = st.sidebar.slider("🧮 Max Token Price (K)", 0.5, 10.0, 2.5, step=0.1)
     r_growth = st.sidebar.slider("📈 Growth Rate (r)", 0.01, 1.0, 0.3, step=0.01)
     t_midpoint = st.sidebar.slider("🕒 Inflection Point (Month t₀)", 1, 24, 12)
 
-    # --- Token Simulation ---
     reward_usd, reward_tokens, total_tokens_over_time = [], [], []
     cumulative_rewards = 0
 
@@ -67,7 +64,6 @@ if page == "📈 STB Investment Strategy Dashboard":
     goal_index = find_nearest_index(projected_profit, 1_000_000)
     opt_index = find_nearest_index(projected_profit, 5_000_000)
 
-    # --- Charts ---
     st.subheader("📊 Total STB Tokens (Including Rewards)")
     fig_tokens = go.Figure()
     fig_tokens.add_trace(go.Scatter(x=months, y=total_tokens_over_time,
@@ -82,12 +78,10 @@ if page == "📈 STB Investment Strategy Dashboard":
         mode='lines+markers', name='Projected Profit',
         hovertemplate='Month %{x}<br>Profit: $%{y:,.0f}<extra></extra>'))
     fig_profit.add_trace(go.Scatter(x=[months[goal_index]], y=[projected_profit[goal_index]],
-        mode='markers+text', name='Goal $1M',
-        text=["$1M Goal"], textposition="top right",
+        mode='markers+text', name='Goal $1M', text=["$1M Goal"], textposition="top right",
         marker=dict(size=10, color="orange")))
     fig_profit.add_trace(go.Scatter(x=[months[opt_index]], y=[projected_profit[opt_index]],
-        mode='markers+text', name='Optimal $5M',
-        text=["$5M Opt"], textposition="bottom left",
+        mode='markers+text', name='Optimal $5M', text=["$5M Opt"], textposition="bottom left",
         marker=dict(size=10, color="green")))
     fig_profit.update_layout(xaxis_title="Month", yaxis_title="Profit ($)", hovermode='x unified')
     st.plotly_chart(fig_profit, use_container_width=True)
@@ -100,7 +94,6 @@ if page == "📈 STB Investment Strategy Dashboard":
     fig_price.update_layout(xaxis_title="Month", yaxis_title="STB Price ($)", hovermode='x unified')
     st.plotly_chart(fig_price, use_container_width=True)
 
-    # --- KPI Table ---
     estimated_token_reward = total_tokens_over_time[-1] - total_tokens
     estimated_total_tokens = total_tokens_over_time[-1]
 
@@ -141,16 +134,14 @@ if page == "📈 STB Investment Strategy Dashboard":
     st.dataframe(pd.DataFrame(kpis, columns=["KPI", "Value"]))
 
 # === Section 2: Token Vesting Distribution ===
-if page == "📊 Token Vesting Distribution":
+elif page == "📊 Token Vesting Distribution":
     st.title("📊 Token Vesting vs. Available Distribution")
 
-    # Token setup
     main_tokens = 457143
     secondary_tokens = 45834
     total_tokens = main_tokens + secondary_tokens
     months = np.arange(1, 15)
 
-    # Initialize tracking
     vested_pct, vesting_pct = [], []
     vested_tokens, vesting_tokens = [], []
 
@@ -163,13 +154,11 @@ if page == "📊 Token Vesting Distribution":
             sv = secondary_tokens
         total_vested = mv + sv
         total_vesting = total_tokens - total_vested
-
         vested_pct.append((total_vested / total_tokens) * 100)
         vesting_pct.append((total_vesting / total_tokens) * 100)
         vested_tokens.append(total_vested)
         vesting_tokens.append(total_vesting)
 
-    # Create full DataFrame
     df = pd.DataFrame({
         "Month": months,
         "Vested & Available (%)": vested_pct,
@@ -178,45 +167,37 @@ if page == "📊 Token Vesting Distribution":
         "Still in Vesting (Tokens)": vesting_tokens
     })
 
-    # Display Mode Toggle
     display_mode = st.radio("📊 Select View Mode", ["Percentage", "Token Amounts"])
 
-    # Plot Chart
     fig = go.Figure()
     if display_mode == "Percentage":
         fig.add_trace(go.Scatter(x=months, y=df["Vested & Available (%)"], mode='lines+markers', name="Available (%)"))
         fig.add_trace(go.Scatter(x=months, y=df["Still in Vesting (%)"], mode='lines+markers', name="In Vesting (%)"))
-        fig.update_layout(
-            title="Token Vesting Schedule (Percentage View)",
-            xaxis_title="Month",
-            yaxis_title="Percentage of Tokens",
-            hovermode='x unified'
-        )
+        fig.update_layout(title="Token Vesting Schedule (Percentage View)", xaxis_title="Month", yaxis_title="Percentage of Tokens", hovermode='x unified')
     else:
         fig.add_trace(go.Scatter(x=months, y=df["Vested & Available (Tokens)"], mode='lines+markers', name="Available Tokens"))
         fig.add_trace(go.Scatter(x=months, y=df["Still in Vesting (Tokens)"], mode='lines+markers', name="In Vesting Tokens"))
-        fig.update_layout(
-            title="Token Vesting Schedule (Token View)",
-            xaxis_title="Month",
-            yaxis_title="Token Amount",
-            hovermode='x unified'
-        )
+        fig.update_layout(title="Token Vesting Schedule (Token View)", xaxis_title="Month", yaxis_title="Token Amount", hovermode='x unified')
 
-    # --- Sidebar Controls ---
-if st.sidebar.header("📆 Altcoin Season Planning")
+    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("📋 Vesting Table")
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+# === Section 3: Altcoin Season Timeline ===
+elif page == "📆 Altcoin Season Timeline":
+    st.title("📆 STB Strategy Timeline")
+
     altseason_start_month = st.sidebar.slider("Month Altcoin Season Starts", 1, 24, 18)
     altseason_duration = st.sidebar.slider("Duration of Altcoin Season (Months)", 1, 6, 4)
 
-    # --- Timeline Setup ---
     start_date = datetime.today()
     months_range = 24
     dates = [start_date + timedelta(days=30 * i) for i in range(months_range)]
-    
-    # --- Build Data ---
+
     lock_period = []
     altseason_period = []
     post_season = []
-    
+
     for i in range(months_range):
         if i < altseason_start_month:
             lock_period.append(1)
@@ -230,21 +211,19 @@ if st.sidebar.header("📆 Altcoin Season Planning")
             lock_period.append(0)
             altseason_period.append(0)
             post_season.append(1)
-    
-    # --- Create DataFrame ---
-    df = pd.DataFrame({
+
+    timeline_df = pd.DataFrame({
         "Date": dates,
         "Locking Phase": lock_period,
         "Altcoin Season": altseason_period,
         "Post Season": post_season
     })
-    
-    # --- Chart ---
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["Date"], y=df["Locking Phase"], name="Locking", stackgroup='one', mode='none'))
-    fig.add_trace(go.Scatter(x=df["Date"], y=df["Altcoin Season"], name="Altcoin Season", stackgroup='one', mode='none'))
-    fig.add_trace(go.Scatter(x=df["Date"], y=df["Post Season"], name="Post Season", stackgroup='one', mode='none'))
-    
+    fig.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Locking Phase"], name="Locking", stackgroup='one', mode='none'))
+    fig.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Altcoin Season"], name="Altcoin Season", stackgroup='one', mode='none'))
+    fig.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Post Season"], name="Post Season", stackgroup='one', mode='none'))
+
     fig.update_layout(
         title="📆 STB Strategy Timeline (Lock → Altseason → Post)",
         xaxis_title="Date",
@@ -253,9 +232,4 @@ if st.sidebar.header("📆 Altcoin Season Planning")
         hovermode='x unified'
     )
 
-st.plotly_chart(fig, use_container_width=True)
-    # Final Output
     st.plotly_chart(fig, use_container_width=True)
-    st.subheader("📋 Vesting Table")
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
