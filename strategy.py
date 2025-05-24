@@ -133,7 +133,7 @@ if page == "📈 STB Investment Strategy Dashboard":
     st.subheader("📌 Key Performance Indicators (KPI)")
     st.dataframe(pd.DataFrame(kpis, columns=["KPI", "Value"]))
 
-# === Section 2: Token Vesting Distribution ===
+# === Section 3: Altcoin Season Timeline ===
 elif page == "📆 Altcoin Season Timeline":
     st.title("📊 Strategic Token Distribution Timeline with Reward Overlay")
 
@@ -172,8 +172,8 @@ elif page == "📆 Altcoin Season Timeline":
 
         # Locking vs Staking Dynamics
         if month < altseason_start_month:
-            lock = vested
-            stake = total_tokens - lock
+            lock = 0
+            stake = vested
         elif altseason_start_month <= month < altseason_start_month + altseason_duration:
             lock = 0
             stake = vested
@@ -181,7 +181,6 @@ elif page == "📆 Altcoin Season Timeline":
             lock = vested
             stake = 0
 
-        # Simulated reward growth
         monthly_reward_tokens = 10000 + i * 5000
         cumulative_rewards += monthly_reward_tokens
 
@@ -228,4 +227,3 @@ elif page == "📆 Altcoin Season Timeline":
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
