@@ -219,12 +219,13 @@ elif page == "📆 Altcoin Season Timeline":
         "Post Season": post_season
     })
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Locking Phase"], name="Locking", stackgroup='one', mode='none'))
-    fig.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Altcoin Season"], name="Altcoin Season", stackgroup='one', mode='none'))
-    fig.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Post Season"], name="Post Season", stackgroup='one', mode='none'))
+    # Timeline Chart
+    fig_timeline = go.Figure()
+    fig_timeline.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Locking Phase"], name="Locking", stackgroup='one', mode='none'))
+    fig_timeline.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Altcoin Season"], name="Altcoin Season", stackgroup='one', mode='none'))
+    fig_timeline.add_trace(go.Scatter(x=timeline_df["Date"], y=timeline_df["Post Season"], name="Post Season", stackgroup='one', mode='none'))
 
-    fig.update_layout(
+    fig_timeline.update_layout(
         title="📆 STB Strategy Timeline (Lock → Altseason → Post)",
         xaxis_title="Date",
         yaxis_title="Phase",
@@ -232,4 +233,10 @@ elif page == "📆 Altcoin Season Timeline":
         hovermode='x unified'
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_timeline, use_container_width=True)
+
+    # Strategic Token Distribution Chart
+    st.subheader("📊 Strategic Token Distribution Timeline With Reward Overlay")
+    fig_distribution = generate_token_distribution_chart()
+    st.plotly_chart(fig_distribution, use_container_width=True)
+
